@@ -171,6 +171,9 @@ endif
 ifeq ($(CIRCUITPY_MATH),1)
 SRC_PATTERNS += math/%
 endif
+ifeq ($(CIRCUITPY_MATRIX),1)
+SRC_PATTERNS += matrix/%
+endif
 ifeq ($(CIRCUITPY__EVE),1)
 SRC_PATTERNS += _eve/%
 endif
@@ -298,6 +301,8 @@ SRC_COMMON_HAL_ALL = \
 	gnss/SatelliteSystem.c \
 	i2cperipheral/I2CPeripheral.c \
 	i2cperipheral/__init__.c \
+	matrix/__init__.c \
+	matrix/Matrix.c \
 	microcontroller/Pin.c \
 	microcontroller/Processor.c \
 	microcontroller/__init__.c \
@@ -398,6 +403,8 @@ SRC_SHARED_MODULE_ALL = \
 	gamepad/__init__.c \
 	gamepadshift/GamePadShift.c \
 	gamepadshift/__init__.c \
+	matrix/__init__.c \
+	matrix/Matrix.c \
 	network/__init__.c \
 	os/__init__.c \
 	random/__init__.c \
