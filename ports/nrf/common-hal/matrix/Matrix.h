@@ -24,30 +24,14 @@
  * THE SOFTWARE.
  */
 
-#ifndef MICROPY_INCLUDED_SHARED_BINDINGS_MATRIX_MATRIX_H
-#define MICROPY_INCLUDED_SHARED_BINDINGS_MATRIX_MATRIX_H
+#ifndef MICROPY_INCLUDED_COMMON_HAL_MATRIX_MATRIX_H
+#define MICROPY_INCLUDED_COMMON_HAL_MATRIX_MATRIX_H
 
-#include <stdint.h>
-#include "py/obj.h"
+#include "shared-bindings/matrix/Matrix.h"
 
-#define MATRIX_QUEUE_SIZE   (1 << 6)
-#define MATRIX_QUEUE_MASK   (MATRIX_QUEUE_SIZE - 1)
-
-extern const mp_obj_type_t matrix_matrix_type;
-
-typedef struct {
-    mp_obj_base_t base;
-    uint8_t queue[MATRIX_QUEUE_SIZE];
-    uint32_t head;
-    uint32_t tail;
-    uint32_t size;
-    uint32_t t0[64];
-    uint32_t t1[64];
-    uint32_t last_time;
-    uint32_t value[8];
-    uint64_t pressed_mask;
-    uint8_t pressed_keys;
-} matrix_matrix_obj_t;
-
+int common_hal_matrix_matrix_init(matrix_matrix_obj_t *self);
+int common_hal_matrix_matrix_deinit(matrix_matrix_obj_t *self);
+uint32_t common_hal_matrix_matrix_scan(matrix_matrix_obj_t *self);
+uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self);
 
 #endif
