@@ -3,6 +3,10 @@
 #include "boards/board.h"
 #include "shared-module/displayio/__init__.h"
 
+extern digitalio_digitalinout_obj_t led_r;
+extern digitalio_digitalinout_obj_t led_g;
+extern digitalio_digitalinout_obj_t led_b;
+
 STATIC const mp_rom_map_elem_t board_module_globals_table[] = {
   { MP_ROM_QSTR(MP_QSTR_R1), MP_ROM_PTR(&pin_P0_05) },
   { MP_ROM_QSTR(MP_QSTR_R2), MP_ROM_PTR(&pin_P0_06) },
@@ -28,11 +32,15 @@ STATIC const mp_rom_map_elem_t board_module_globals_table[] = {
   { MP_ROM_QSTR(MP_QSTR_SCL), MP_ROM_PTR(&pin_P1_06) },
   { MP_ROM_QSTR(MP_QSTR_SDA), MP_ROM_PTR(&pin_P1_05) },
 
-  { MP_ROM_QSTR(MP_QSTR_LED_R), MP_ROM_PTR(&pin_P0_30) },
-  { MP_ROM_QSTR(MP_QSTR_LED_G), MP_ROM_PTR(&pin_P0_29) },
-  { MP_ROM_QSTR(MP_QSTR_LED_B), MP_ROM_PTR(&pin_P0_31) },
+  // { MP_ROM_QSTR(MP_QSTR_BTN), MP_ROM_PTR(&pin_P0_27) },
 
-  { MP_ROM_QSTR(MP_QSTR_BTN), MP_ROM_PTR(&pin_P0_27) },
+  // { MP_ROM_QSTR(MP_QSTR_LED_R), MP_ROM_PTR(&pin_P0_30) },
+  // { MP_ROM_QSTR(MP_QSTR_LED_G), MP_ROM_PTR(&pin_P0_29) },
+  // { MP_ROM_QSTR(MP_QSTR_LED_B), MP_ROM_PTR(&pin_P0_31) },
+
+  { MP_ROM_QSTR(MP_QSTR_led_r), MP_ROM_PTR(&led_r) },
+  { MP_ROM_QSTR(MP_QSTR_led_g), MP_ROM_PTR(&led_g) },
+  { MP_ROM_QSTR(MP_QSTR_led_b), MP_ROM_PTR(&led_b) },
 
 //   { MP_ROM_QSTR(MP_QSTR_UART), MP_ROM_PTR(&board_uart_obj) },
   { MP_ROM_QSTR(MP_QSTR_I2C), MP_ROM_PTR(&board_i2c_obj) }

@@ -147,6 +147,8 @@ endif
 
 
 SRC_C += \
+	app_timer.c \
+	app_util_platform.c \
 	background.c \
 	fatfs_port.c \
 	boards/$(BOARD)/board.c \
