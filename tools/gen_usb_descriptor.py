@@ -250,7 +250,7 @@ hid_endpoint_in_descriptor = standard.EndpointDescriptor(
     description="HID in",
     bEndpointAddress=args.hid_ep_num_in | standard.EndpointDescriptor.DIRECTION_IN,
     bmAttributes=standard.EndpointDescriptor.TYPE_INTERRUPT,
-    bInterval=8)
+    bInterval=1)
 
 hid_endpoint_out_descriptor = standard.EndpointDescriptor(
     description="HID out",
