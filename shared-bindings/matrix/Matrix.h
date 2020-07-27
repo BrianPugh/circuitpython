@@ -45,8 +45,7 @@ typedef struct {
     uint32_t t1[64];
     uint32_t last_time;
     uint32_t value[8];
-    uint64_t pressed_mask;
-    uint8_t pressed_keys;
+    uint32_t active;
 } matrix_matrix_obj_t;
 
 

@@ -31,7 +31,6 @@
 
 #include "common-hal/matrix/Matrix.h"
 #include "shared-bindings/matrix/Matrix.h"
-#include "shared-bindings/time/__init__.h"
 #include "supervisor/port.h"
 
 //| class Matrix:
@@ -112,39 +111,11 @@ STATIC mp_obj_t matrix_matrix_wait(size_t n_args, const mp_obj_t *pos_args, mp_m
     mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
 
     int timeout = args[ARG_timeout].u_int;
-    if (timeout == 0) {
-        return MP_OBJ_NEW_SMALL_INT(common_hal_matrix_matrix_wait(self));
+    if (timeout <= 0) {
+        return MP_OBJ_NEW_SMALL_INT(common_hal_matrix_matrix_scan(self));
     }
 
-    uint64_t start_tick = port_get_raw_ticks(NULL);
-    // Adjust the delay to ticks vs ms.
-    timeout = timeout * 1024 / 1000;
-    uint64_t end_tick = start_tick + timeout;
-
-    uint32_t n = self->head - self->tail;
-    if (n > 0) {
-        do {
-            uint32_t result = common_hal_matrix_matrix_scan(self);
-            if (result > n) {
-                n = result;
-                break;
-            }
-            common_hal_time_delay_ms(1);
-            timeout = end_tick - port_get_raw_ticks(NULL);
-        } while (timeout > 0);
-    } else {
-        while (timeout > 0) {
-            port_interrupt_after_ticks(timeout);
-            uint32_t result = common_hal_matrix_matrix_wait(self);
-            if (result > n) {
-                n = result;
-                break;
-            }
-            timeout = end_tick - port_get_raw_ticks(NULL);
-        }
-    }
-
-    return MP_OBJ_NEW_SMALL_INT(n);
+    return MP_OBJ_NEW_SMALL_INT(common_hal_matrix_matrix_wait(self, timeout));
 }
 MP_DEFINE_CONST_FUN_OBJ_KW(matrix_matrix_wait_obj, 1, matrix_matrix_wait);
 

@@ -4,6 +4,9 @@
 #include "nrfx_gpiote.h"
 #include "supervisor/port.h"
 #include "common-hal/matrix/Matrix.h"
+#include "shared-bindings/time/__init__.h"
+#include "lib/tinyusb/src/device/usbd.h"
+#include "nrf_qspi.h"
 
 #define MATRIX_ROWS 8
 #define MATRIX_COLS 8
@@ -28,6 +31,7 @@ static void deinit_cols(void);
 
 void matrix_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
+    // NRF_P0->OUTSET = 1 << 29;
     matrix_interrupt_status = 1;
 }
 
@@ -54,8 +58,9 @@ int common_hal_matrix_matrix_deinit(matrix_matrix_obj_t *self)
 
 uint32_t common_hal_matrix_matrix_scan(matrix_matrix_obj_t *self)
 {
-    uint32_t scan_time = port_get_raw_ticks(NULL);  // unit: 1 / 1024 of a second
+    uint32_t active = 0;
     uint8_t rows = 8;
+    uint32_t scan_time = port_get_raw_ticks(NULL);  // unit: 1 / 1024 of a second
 
     for (uint8_t row = 0; row < rows; row++) {
         select_row(row);
@@ -83,25 +88,71 @@ uint32_t common_hal_matrix_matrix_scan(matrix_matrix_obj_t *self)
             col++;
         }
         self->value[row] = cols_value;
+
+        active |= cols_value;
     }
+
+    self->active = active;
 
     return self->head - self->tail;
 }
 
 
-uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self)
+uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
 {
-    select_rows();
-    matrix_interrupt_status = 0;
-    enable_interrupt();
-    port_sleep_until_interrupt();
-    disable_interrupt();
-    unselect_rows();
-    if (matrix_interrupt_status) {
-        return common_hal_matrix_matrix_scan(self);
+    // if (NRF_QSPI->ENABLE && !(NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk)) {
+    //     // csn-pins = <45> - keep CS high when QSPI is diabled
+    //     NRF_P1->OUTSET = 1 << 13;
+    //     NRF_P1->PIN_CNF[13] = 3;
+
+    //     *(volatile uint32_t *)0x40029010 = 1;
+    //     *(volatile uint32_t *)0x40029054 = 1;
+    //     NRF_QSPI->ENABLE = 0;
+        
+    //     // NRF_P0->OUTCLR = 1 << 31;
+    // }
+
+    uint64_t start_tick = port_get_raw_ticks(NULL);
+    // Adjust the delay to ticks vs ms.
+    int64_t remaining = timeout * 1024 / 1000;
+    uint64_t end_tick = start_tick + timeout;
+    uint32_t n = self->head - self->tail;
+    if (self->active) {
+        do {
+            uint32_t result = common_hal_matrix_matrix_scan(self);
+            if (result > n) {
+                n = result;
+                break;
+            }
+            port_interrupt_after_ticks(2);
+            port_sleep_until_interrupt();
+            remaining = end_tick - port_get_raw_ticks(NULL);
+        } while (remaining > 1);
+    } else {
+        select_rows();
+        uint32_t cols = read_cols();
+        matrix_interrupt_status = 0;
+        if (!cols) {
+            enable_interrupt();
+            // NRF_P0->OUTCLR = 1 << 29;
+            do {
+                port_interrupt_after_ticks(remaining);
+                port_sleep_until_interrupt();
+                if (matrix_interrupt_status) {
+                    break;
+                }
+                remaining = end_tick - port_get_raw_ticks(NULL);
+            } while (remaining > 1);
+            disable_interrupt();
+        }
+        unselect_rows();
+
+        if (cols || matrix_interrupt_status) {
+            n = common_hal_matrix_matrix_scan(self);
+        }
     }
 
-    return self->head - self->tail;
+    return n;
 }
 
 // void common_hal_matrix_matrix_enter_interrupt_mode(void)
@@ -139,7 +190,7 @@ static void init_rows(void)
 
 static void init_cols(void)
 {
-    nrfx_gpiote_in_config_t config = NRFX_GPIOTE_CONFIG_IN_SENSE_TOGGLE(false);
+    nrfx_gpiote_in_config_t config = NRFX_GPIOTE_CONFIG_IN_SENSE_TOGGLE(true);
     config.pull = NRF_GPIO_PIN_PULLUP;
 
     if ( !nrfx_gpiote_is_init() ) {
