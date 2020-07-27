@@ -38,6 +38,7 @@
 #define LED_R       30
 #define LED_G       29
 #define LED_B       31
+#define RGB_MATRIX_EN   36
 
 
 APP_TIMER_DEF(m_timer_id);
@@ -50,6 +51,7 @@ void timeout_handler(void *p)
 {
   if (!(NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk)) {
     nrf_gpio_pin_write(BAT_EN, 0);
+    // nrf_gpio_pin_write(RGB_MATRIX_EN, 0);
     nrf_gpio_pin_write(LED_R, 1);
     while (!nrf_gpio_pin_read(BUTTON)) {
       NRFX_DELAY_US(1000);
@@ -76,6 +78,10 @@ void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 void board_init(void) {
   never_reset_pin_number(BUTTON);
   never_reset_pin_number(BAT_EN);
+  // never_reset_pin_number(RGB_MATRIX_EN);
+
+  // nrf_gpio_cfg_output(RGB_MATRIX_EN);
+  // nrf_gpio_pin_write(RGB_MATRIX_EN, 0);
 
   common_hal_digitalio_digitalinout_construct(&led_r, &pin_P0_30);
   common_hal_digitalio_digitalinout_construct(&led_g, &pin_P0_29);
@@ -111,7 +117,7 @@ void board_init(void) {
   }
   nrfx_gpiote_init(NRFX_GPIOTE_CONFIG_IRQ_PRIORITY);
 
-  nrfx_gpiote_in_config_t config = NRFX_GPIOTE_CONFIG_IN_SENSE_TOGGLE(true);
+  nrfx_gpiote_in_config_t config = NRFX_GPIOTE_CONFIG_IN_SENSE_TOGGLE(false);
   config.pull = NRF_GPIO_PIN_PULLUP;
 
   nrfx_gpiote_in_init(BUTTON, &config, button_event_handler);
