@@ -58,7 +58,7 @@ NRF_DEFINES += -DNRF52840_XXAA -DNRF52840
 # CircuitPython doesn't yet support NFC so force the NFC antenna pins to be GPIO.
 # See https://github.com/adafruit/circuitpython/issues/1300
 # Defined here because system_nrf52840.c doesn't #include any of our own include files.
-CFLAGS += -DCONFIG_NFCT_PINS_AS_GPIOS
+# CFLAGS += -DCONFIG_NFCT_PINS_AS_GPIOS
 
 else
 ifeq ($(MCU_CHIP),nrf52833)
