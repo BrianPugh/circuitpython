@@ -64,7 +64,7 @@ void init_usb_hardware(void) {
 #endif
     {
         // Power module init
-        const nrfx_power_config_t pwr_cfg = { 0 };
+        const nrfx_power_config_t pwr_cfg = { .dcdcen = 1, };
         nrfx_power_init(&pwr_cfg);
 
         // Register tusb function as USB power handler
