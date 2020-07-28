@@ -5,7 +5,6 @@
 #include "supervisor/port.h"
 #include "common-hal/matrix/Matrix.h"
 #include "shared-bindings/time/__init__.h"
-#include "lib/tinyusb/src/device/usbd.h"
 #include "nrf_qspi.h"
 
 #define MATRIX_ROWS 8
@@ -100,18 +99,6 @@ uint32_t common_hal_matrix_matrix_scan(matrix_matrix_obj_t *self)
 
 uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
 {
-    // if (NRF_QSPI->ENABLE && !(NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk)) {
-    //     // csn-pins = <45> - keep CS high when QSPI is diabled
-    //     NRF_P1->OUTSET = 1 << 13;
-    //     NRF_P1->PIN_CNF[13] = 3;
-
-    //     *(volatile uint32_t *)0x40029010 = 1;
-    //     *(volatile uint32_t *)0x40029054 = 1;
-    //     NRF_QSPI->ENABLE = 0;
-        
-    //     // NRF_P0->OUTCLR = 1 << 31;
-    // }
-
     uint64_t start_tick = port_get_raw_ticks(NULL);
     // Adjust the delay to ticks vs ms.
     int64_t remaining = timeout * 1024 / 1000;
@@ -124,7 +111,8 @@ uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
                 n = result;
                 break;
             }
-            port_interrupt_after_ticks(2);
+            uint32_t tick = remaining < 4 ? remaining : 4;
+            port_interrupt_after_ticks(tick);
             port_sleep_until_interrupt();
             remaining = end_tick - port_get_raw_ticks(NULL);
         } while (remaining > 1);
@@ -154,30 +142,6 @@ uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
 
     return n;
 }
-
-// void common_hal_matrix_matrix_enter_interrupt_mode(void)
-// {
-//     if (!(NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk))
-//     {
-//         // Disable QSPI
-//         // csn-pins = <45> - keep CS high when QSPI is diabled
-//         NRF_P1->OUTSET = 1 << 13;
-//         NRF_P1->PIN_CNF[13] = 3;
-
-//         // workaround
-//         *(volatile uint32_t *)0x40029010 = 1;
-//         *(volatile uint32_t *)0x40029054 = 1;
-//         NRF_QSPI->ENABLE = 0;
-//     }
-// }
-
-// void common_hal_matrix_matrix_leave_interrupt_mode(void)
-// {
-//     if (!NRF_QSPI->ENABLE)
-//     {
-//         NRF_QSPI->ENABLE = 1;
-//     }
-// }
 
 static void init_rows(void)
 {
@@ -231,7 +195,7 @@ static void disable_interrupt(void)
 {
     for (int i = 0; i < MATRIX_COLS; i++)
     {
-        nrfx_gpiote_in_event_enable(col_io[i], false);
+        nrfx_gpiote_in_event_disable(col_io[i]);
     }
 }
 
