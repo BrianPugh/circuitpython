@@ -154,7 +154,7 @@ static void init_rows(void)
 
 static void init_cols(void)
 {
-    nrfx_gpiote_in_config_t config = NRFX_GPIOTE_CONFIG_IN_SENSE_TOGGLE(true);
+    nrfx_gpiote_in_config_t config = NRFX_GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
     config.pull = NRF_GPIO_PIN_PULLUP;
 
     if ( !nrfx_gpiote_is_init() ) {
