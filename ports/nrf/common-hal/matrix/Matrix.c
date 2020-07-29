@@ -18,8 +18,8 @@ static int matrix_is_inited = 0;
 
 static uint32_t read_cols(void);
 static void init_cols(void);
-// static void enable_interrupt(void);
-// static void disable_interrupt(void);
+static void enable_interrupt(void);
+static void disable_interrupt(void);
 static void init_rows(void);
 static void unselect_rows(void);
 static void select_rows(void);
@@ -58,10 +58,9 @@ int common_hal_matrix_matrix_deinit(matrix_matrix_obj_t *self)
 uint32_t common_hal_matrix_matrix_scan(matrix_matrix_obj_t *self)
 {
     uint32_t active = 0;
-    uint8_t rows = 8;
     uint32_t scan_time = port_get_raw_ticks(NULL);  // unit: 1 / 1024 of a second
 
-    for (uint8_t row = 0; row < rows; row++) {
+    for (unsigned row = 0; row < sizeof(row_io); row++) {
         select_row(row);
         NRFX_DELAY_US(1);
         uint32_t cols_value = read_cols();
@@ -111,12 +110,19 @@ uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
                 n = result;
                 break;
             }
-            uint32_t tick = remaining < 4 ? remaining : 4;
             matrix_interrupt_status = 0;
-            // enable_interrupt();
+            // select_rows();
+            for (unsigned row = 0; row < sizeof(row_io); row++) {
+                if (!self->value[row]) {
+                    select_row(row);
+                }
+            }
+            enable_interrupt();
+            uint32_t tick = remaining < 4 ? remaining : 4;
             port_interrupt_after_ticks(tick);
             port_sleep_until_interrupt();
-            // disable_interrupt();
+            disable_interrupt();
+            unselect_rows();
             remaining = end_tick - port_get_raw_ticks(NULL);
         } while (remaining > 1 || matrix_interrupt_status);
     } else {
@@ -124,7 +130,7 @@ uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
         uint32_t cols = read_cols();
         matrix_interrupt_status = 0;
         if (!cols) {
-            // enable_interrupt();
+            enable_interrupt();
             do {
                 port_interrupt_after_ticks(remaining);
                 port_sleep_until_interrupt();
@@ -133,7 +139,7 @@ uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
                 }
                 remaining = end_tick - port_get_raw_ticks(NULL);
             } while (remaining > 1);
-            // disable_interrupt();
+            disable_interrupt();
         }
         unselect_rows();
 
@@ -156,7 +162,7 @@ static void init_rows(void)
 
 static void init_cols(void)
 {
-    nrfx_gpiote_in_config_t config = NRFX_GPIOTE_CONFIG_IN_SENSE_TOGGLE(true);
+    nrfx_gpiote_in_config_t config = NRFX_GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
     config.pull = NRF_GPIO_PIN_PULLUP;
 
     if ( !nrfx_gpiote_is_init() ) {
@@ -166,7 +172,6 @@ static void init_cols(void)
     for (int i = 0; i < MATRIX_COLS; i++)
     {
         nrfx_gpiote_in_init(col_io[i], &config, matrix_event_handler);
-        nrfx_gpiote_in_event_enable(col_io[i], true);
     }
 }
 
@@ -186,21 +191,21 @@ static void deinit_cols(void)
     }
 }
 
-// static void enable_interrupt(void)
-// {
-//     for (int i = 0; i < MATRIX_COLS; i++)
-//     {
-//         nrfx_gpiote_in_event_enable(col_io[i], true);
-//     }
-// }
+static void enable_interrupt(void)
+{
+    for (int i = 0; i < MATRIX_COLS; i++)
+    {
+        nrfx_gpiote_in_event_enable(col_io[i], true);
+    }
+}
 
-// static void disable_interrupt(void)
-// {
-//     for (int i = 0; i < MATRIX_COLS; i++)
-//     {
-//         nrfx_gpiote_in_event_disable(col_io[i]);
-//     }
-// }
+static void disable_interrupt(void)
+{
+    for (int i = 0; i < MATRIX_COLS; i++)
+    {
+        nrfx_gpiote_in_event_disable(col_io[i]);
+    }
+}
 
 /* Returns status of switches(1:on, 0:off) */
 static uint32_t read_cols(void)
