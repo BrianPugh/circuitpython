@@ -112,17 +112,19 @@ uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
                 break;
             }
             uint32_t tick = remaining < 4 ? remaining : 4;
+            matrix_interrupt_status = 0;
+            enable_interrupt();
             port_interrupt_after_ticks(tick);
             port_sleep_until_interrupt();
+            disable_interrupt();
             remaining = end_tick - port_get_raw_ticks(NULL);
-        } while (remaining > 1);
+        } while (remaining > 1 || matrix_interrupt_status);
     } else {
         select_rows();
         uint32_t cols = read_cols();
         matrix_interrupt_status = 0;
         if (!cols) {
             enable_interrupt();
-            // NRF_P0->OUTCLR = 1 << 29;
             do {
                 port_interrupt_after_ticks(remaining);
                 port_sleep_until_interrupt();
