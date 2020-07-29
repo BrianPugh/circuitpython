@@ -284,10 +284,7 @@ void port_disable_tick(void) {
 
 void port_interrupt_after_ticks(uint32_t ticks) {
     uint32_t current_ticks = nrfx_rtc_counter_get(&rtc_instance);
-    uint32_t diff = 3;
-    if (ticks > diff) {
-        diff = ticks * 32;
-    }
+    uint32_t diff = ticks * 32;
     if (diff > 0xffffff) {
         diff = 0xffffff;
     }
