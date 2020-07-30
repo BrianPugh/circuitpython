@@ -41,9 +41,10 @@ typedef struct {
     uint32_t head;
     uint32_t tail;
     uint32_t size;
+    uint32_t t;
     uint32_t t0[64];
     uint32_t t1[64];
-    uint32_t last_time;
+    uint32_t raw[8];
     uint32_t value[8];
     uint32_t active;
 } matrix_matrix_obj_t;
