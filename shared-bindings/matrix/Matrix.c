@@ -43,6 +43,7 @@ STATIC mp_obj_t matrix_matrix_make_new(const mp_obj_type_t *type,
     self->head = 0;
     self->tail = 0;
     self->size = sizeof(self->queue) / sizeof(self->queue[0]);
+    self->debounce_ticks = 16;
 
     common_hal_matrix_matrix_init(self);
 
@@ -89,6 +90,29 @@ const mp_obj_property_t matrix_matrix_keys_obj = {
     .base.type = &mp_type_property,
     .proxy = {(mp_obj_t)&matrix_matrix_get_keys_obj,
               (mp_obj_t)&mp_const_none_obj,
+              (mp_obj_t)&mp_const_none_obj},
+};
+
+STATIC mp_obj_t matrix_matrix_get_debounce_time(mp_obj_t self_in) {
+    matrix_matrix_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    return MP_OBJ_NEW_SMALL_INT(self->debounce_ticks * 1000 / 1024);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(matrix_matrix_get_debounce_time_obj, matrix_matrix_get_debounce_time);
+
+
+STATIC mp_obj_t matrix_matrix_set_debounce_time(mp_obj_t self_in, mp_obj_t value) {
+    matrix_matrix_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    int t = mp_obj_get_int(value);
+    t = t < 0 ? 0 : t;
+    self->debounce_ticks = t * 1024 / 1000;
+    return mp_const_none;
+}
+MP_DEFINE_CONST_FUN_OBJ_2(matrix_matrix_set_debounce_time_obj, matrix_matrix_set_debounce_time);
+
+const mp_obj_property_t matrix_matrix_debounce_time_obj = {
+    .base.type = &mp_type_property,
+    .proxy = {(mp_obj_t)&matrix_matrix_get_debounce_time_obj,
+              (mp_obj_t)&matrix_matrix_set_debounce_time_obj,
               (mp_obj_t)&mp_const_none_obj},
 };
 
@@ -218,6 +242,7 @@ STATIC const mp_rom_map_elem_t matrix_matrix_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_rows), MP_ROM_PTR(&matrix_matrix_rows_obj) },
     { MP_ROM_QSTR(MP_QSTR_cols), MP_ROM_PTR(&matrix_matrix_cols_obj) },
     { MP_ROM_QSTR(MP_QSTR_keys), MP_ROM_PTR(&matrix_matrix_keys_obj) },
+    { MP_ROM_QSTR(MP_QSTR_debounce_time), MP_ROM_PTR(&matrix_matrix_debounce_time_obj) },
 
 };
 STATIC MP_DEFINE_CONST_DICT(matrix_matrix_locals_dict, matrix_matrix_locals_dict_table);

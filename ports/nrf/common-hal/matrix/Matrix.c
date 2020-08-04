@@ -9,7 +9,6 @@
 
 #define MATRIX_ROWS 8
 #define MATRIX_COLS 8
-#define DEBOUNCE_TICKS 4
 
 static uint8_t row_io[MATRIX_ROWS] = {5, 6, 7, 8, 41, 40, 12, 11};
 static uint8_t col_io[MATRIX_COLS] = {19, 20, 21, 22, 23, 24, 25, 26};
@@ -60,6 +59,7 @@ uint32_t common_hal_matrix_matrix_scan(matrix_matrix_obj_t *self)
 {
     uint32_t active = 0;
     uint32_t t = port_get_raw_ticks(NULL);  // unit: 1 / 1024 of a second
+    uint32_t debounce_ticks = self->debounce_ticks;
 
     for (unsigned row = 0; row < sizeof(row_io); row++) {
         select_row(row);
@@ -77,7 +77,7 @@ uint32_t common_hal_matrix_matrix_scan(matrix_matrix_obj_t *self)
                 uint8_t key = row * MATRIX_COLS + col;
                 if (cols_value & col_mask) {
                     // key down
-                    if ((uint32_t)(t - self->t1[key]) > DEBOUNCE_TICKS) {
+                    if ((uint32_t)(t - self->t1[key]) > debounce_ticks) {
                         inverted_bits |= col_mask;
                         self->queue[self->head & MATRIX_QUEUE_MASK] = key;
                         self->head++;
@@ -85,7 +85,7 @@ uint32_t common_hal_matrix_matrix_scan(matrix_matrix_obj_t *self)
                     }
                 } else {
                     // key up
-                    if ((uint32_t)(t - self->t0[key]) > DEBOUNCE_TICKS) {
+                    if ((uint32_t)(t - self->t0[key]) > debounce_ticks) {
                         inverted_bits |= col_mask;
                         self->queue[self->head & MATRIX_QUEUE_MASK] = 0x80 | key;
                         self->head++;

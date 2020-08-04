@@ -47,6 +47,7 @@ typedef struct {
     uint32_t raw[8];
     uint32_t value[8];
     uint32_t active;
+    uint32_t debounce_ticks;
 } matrix_matrix_obj_t;
 
 
