@@ -33,6 +33,7 @@
 #include "supervisor/port.h"
 
 #define DFU_MAGIC_UF2_RESET             0x57
+#define DFU_MAGIC_FAST_BOOT             0xFB
 
 #define BUTTON      27
 #define BAT_EN      28
@@ -42,20 +43,25 @@
 #define RGB_MATRIX_EN   36
 
 volatile static uint64_t button_down_time = 0;
-volatile static bool shutdown = false;
 APP_TIMER_DEF(m_timer_id);
 
 digitalio_digitalinout_obj_t led_r;
 digitalio_digitalinout_obj_t led_g;
 digitalio_digitalinout_obj_t led_b;
 
+
+void power_off(void)
+{
+  nrf_gpio_cfg_default(BAT_EN);
+  nrf_gpio_cfg_default(RGB_MATRIX_EN);
+  nrf_gpio_pin_write(LED_R, 1);
+  NRF_POWER->GPREGRET = DFU_MAGIC_FAST_BOOT;
+}
+
 void timeout_handler(void *p)
 {
   if (!(NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk)) {
-    nrf_gpio_cfg_default(BAT_EN);
-    nrf_gpio_cfg_default(RGB_MATRIX_EN);
-    nrf_gpio_pin_write(LED_R, 1);
-    shutdown = true;
+    power_off();
   } else {
     NRF_POWER->GPREGRET = DFU_MAGIC_UF2_RESET;
     NVIC_SystemReset();
@@ -73,18 +79,22 @@ void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
       return;
     }
 
-    if (!shutdown) {
-      app_timer_stop(m_timer_id);
-    }
-
+    app_timer_stop(m_timer_id);
     nrf_gpio_pin_write(LED_R, 1);
 
     uint64_t dt = port_get_raw_ticks(NULL) - button_down_time;
     if (dt > (3 * 1024)) {
-      NRF_POWER->GPREGRET = DFU_MAGIC_UF2_RESET;
+      if (!(NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk)) {
+        power_off();
+      } else {
+        NRF_POWER->GPREGRET = DFU_MAGIC_UF2_RESET;
+      }
       NVIC_SystemReset();
     } else if (dt > 100) {
-      NVIC_SystemReset();
+      if (NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk) {
+        NRF_POWER->GPREGRET = DFU_MAGIC_FAST_BOOT;
+        NVIC_SystemReset();
+      }
     }
   }
 }
