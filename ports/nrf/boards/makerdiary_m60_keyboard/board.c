@@ -42,7 +42,7 @@
 #define LED_B       31
 #define RGB_MATRIX_EN   36
 
-volatile static uint64_t button_down_time = 0;
+volatile static uint32_t button_down_time = 0;
 APP_TIMER_DEF(m_timer_id);
 
 digitalio_digitalinout_obj_t led_r;
@@ -55,16 +55,18 @@ void power_off(void)
   nrf_gpio_cfg_default(BAT_EN);
   nrf_gpio_cfg_default(RGB_MATRIX_EN);
   nrf_gpio_pin_write(LED_R, 1);
-  NRF_POWER->GPREGRET = DFU_MAGIC_FAST_BOOT;
 }
 
 void timeout_handler(void *p)
 {
-  if (!(NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk)) {
-    power_off();
-  } else {
+  if (!button_down_time && nrf_gpio_pin_read(BUTTON)) {
+    return;
+  }
+  if (NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk) {
     NRF_POWER->GPREGRET = DFU_MAGIC_UF2_RESET;
-    NVIC_SystemReset();
+    reset_cpu();
+  } else {
+    power_off();
   }
 }
 
@@ -79,21 +81,21 @@ void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
       return;
     }
 
-    app_timer_stop(m_timer_id);
+    // app_timer_stop(m_timer_id);
     nrf_gpio_pin_write(LED_R, 1);
 
-    uint64_t dt = port_get_raw_ticks(NULL) - button_down_time;
+    uint32_t dt = port_get_raw_ticks(NULL) - button_down_time;
+    button_down_time = 0;
     if (dt > (3 * 1024)) {
-      if (!(NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk)) {
-        power_off();
-      } else {
-        NRF_POWER->GPREGRET = DFU_MAGIC_UF2_RESET;
-      }
-      NVIC_SystemReset();
-    } else if (dt > 100) {
       if (NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk) {
-        NRF_POWER->GPREGRET = DFU_MAGIC_FAST_BOOT;
-        NVIC_SystemReset();
+        reset_to_bootloader();
+      } else {
+        power_off();
+        reset_cpu();
+      }
+    } else if (dt > 128) {
+      if (NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk) {
+        reset_cpu();
       }
     }
   }
@@ -132,8 +134,6 @@ void board_init(void) {
   // never_reset_pin_number(LED_B);
 
   app_timer_init();
-
-  // app_timer_id_t m_timer_id;
   app_timer_create(&m_timer_id, APP_TIMER_MODE_SINGLE_SHOT, timeout_handler);
 
   if (nrfx_gpiote_is_init()) {
