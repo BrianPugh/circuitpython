@@ -30,6 +30,7 @@
 #include "nrfx_gpiote.h"
 #include "app_timer.h"
 #include "nrfx/drivers/include/nrfx_power.h"
+#include "supervisor/port.h"
 
 #define DFU_MAGIC_UF2_RESET             0x57
 
@@ -40,7 +41,8 @@
 #define LED_B       31
 #define RGB_MATRIX_EN   36
 
-
+volatile static uint64_t button_down_time = 0;
+volatile static bool shutdown = false;
 APP_TIMER_DEF(m_timer_id);
 
 digitalio_digitalinout_obj_t led_r;
@@ -50,28 +52,40 @@ digitalio_digitalinout_obj_t led_b;
 void timeout_handler(void *p)
 {
   if (!(NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk)) {
-    nrf_gpio_pin_write(BAT_EN, 0);
-    // nrf_gpio_pin_write(RGB_MATRIX_EN, 0);
+    nrf_gpio_cfg_default(BAT_EN);
+    nrf_gpio_cfg_default(RGB_MATRIX_EN);
     nrf_gpio_pin_write(LED_R, 1);
-    while (!nrf_gpio_pin_read(BUTTON)) {
-      NRFX_DELAY_US(1000);
-    }
-    NRFX_DELAY_US(100000);
+    shutdown = true;
   } else {
     NRF_POWER->GPREGRET = DFU_MAGIC_UF2_RESET;
+    NVIC_SystemReset();
   }
-
-	NVIC_SystemReset();
 }
 
 void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
   if (!nrf_gpio_pin_read(BUTTON)) {
+    button_down_time = port_get_raw_ticks(NULL);
     app_timer_start(m_timer_id, APP_TIMER_TICKS(3000), NULL);
     nrf_gpio_pin_write(LED_R, 0);
   } else {
-    app_timer_stop(m_timer_id);
+    if (button_down_time == 0) {
+      return;
+    }
+
+    if (!shutdown) {
+      app_timer_stop(m_timer_id);
+    }
+
     nrf_gpio_pin_write(LED_R, 1);
+
+    uint64_t dt = port_get_raw_ticks(NULL) - button_down_time;
+    if (dt > (3 * 1024)) {
+      NRF_POWER->GPREGRET = DFU_MAGIC_UF2_RESET;
+      NVIC_SystemReset();
+    } else if (dt > 100) {
+      NVIC_SystemReset();
+    }
   }
 }
 
