@@ -33,5 +33,6 @@ int common_hal_matrix_matrix_init(matrix_matrix_obj_t *self);
 int common_hal_matrix_matrix_deinit(matrix_matrix_obj_t *self);
 uint32_t common_hal_matrix_matrix_scan(matrix_matrix_obj_t *self);
 uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout);
+void common_hal_matrix_matrix_suspend(matrix_matrix_obj_t *self);
 
 #endif

@@ -124,6 +124,14 @@ STATIC mp_obj_t matrix_matrix_scan(mp_obj_t self_in) {
 MP_DEFINE_CONST_FUN_OBJ_1(matrix_matrix_scan_obj, matrix_matrix_scan);
 
 
+STATIC mp_obj_t matrix_matrix_suspend(mp_obj_t self_in) {
+    matrix_matrix_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    common_hal_matrix_matrix_suspend(self);
+    return mp_const_none;
+}
+MP_DEFINE_CONST_FUN_OBJ_1(matrix_matrix_suspend_obj, matrix_matrix_suspend);
+
+
 STATIC mp_obj_t matrix_matrix_wait(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     enum { ARG_timeout };
     static const mp_arg_t allowed_args[] = {
@@ -238,6 +246,7 @@ STATIC const mp_rom_map_elem_t matrix_matrix_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_time), MP_ROM_PTR(&matrix_matrix_time_obj) },
     { MP_ROM_QSTR(MP_QSTR_ms), MP_ROM_PTR(&matrix_matrix_ms_obj) },
     { MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&matrix_matrix_deinit_obj) },
+    { MP_ROM_QSTR(MP_QSTR_suspend), MP_ROM_PTR(&matrix_matrix_suspend_obj) },
 
     { MP_ROM_QSTR(MP_QSTR_rows), MP_ROM_PTR(&matrix_matrix_rows_obj) },
     { MP_ROM_QSTR(MP_QSTR_cols), MP_ROM_PTR(&matrix_matrix_cols_obj) },

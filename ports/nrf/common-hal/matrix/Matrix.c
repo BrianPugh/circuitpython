@@ -163,6 +163,44 @@ uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
     return n;
 }
 
+void common_hal_matrix_matrix_suspend(matrix_matrix_obj_t *self)
+{
+    // When USB is connected, do not suspend
+    if (NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk) {
+        return;
+    }
+
+    select_rows();
+
+    // make sure keys are released
+    uint32_t cols = read_cols();
+    uint32_t last;
+    do {
+        NRFX_DELAY_US(10000);
+        last = cols;
+        cols = read_cols();
+    } while (!(cols | last));
+
+    enable_interrupt();
+
+#if defined(MICROPY_QSPI_SCK)
+    if (NRF_QSPI->ENABLE) {
+        // csn-pins = <45> - keep CS high when QSPI is diabled
+        NRF_P1->OUTSET = 1 << 13;
+        NRF_P1->PIN_CNF[13] = 3;
+
+        *(volatile uint32_t *)0x40029010 = 1;
+        *(volatile uint32_t *)0x40029054 = 1;
+        NRF_QSPI->ENABLE = 0;
+    }
+#endif
+
+    NRF_POWER->SYSTEMOFF = 1;
+    NRFX_DELAY_US(10000);
+    disable_interrupt();
+    unselect_rows();
+}
+
 static void init_rows(void)
 {
     for (int i = 0; i < MATRIX_ROWS; i++)
