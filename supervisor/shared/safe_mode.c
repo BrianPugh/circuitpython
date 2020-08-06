@@ -52,6 +52,7 @@ safe_mode_t wait_for_safe_mode_reset(void) {
         current_safe_mode = safe_mode;
         return safe_mode;
     }
+#if 0
     port_set_saved_word(SAFE_MODE_DATA_GUARD | (MANUAL_SAFE_MODE << 8));
     // Wait for a while to allow for reset.
     temp_status_color(SAFE_MODE);
@@ -74,6 +75,7 @@ safe_mode_t wait_for_safe_mode_reset(void) {
     #endif
     clear_temp_status();
     port_set_saved_word(SAFE_MODE_DATA_GUARD);
+#endif
     return NO_SAFE_MODE;
 }
 
@@ -83,12 +85,14 @@ void safe_mode_on_next_reset(safe_mode_t reason) {
 
 // Don't inline this so it's easy to break on it from GDB.
 void __attribute__((noinline,)) reset_into_safe_mode(safe_mode_t reason) {
+#if 0
     if (current_safe_mode > BROWNOUT && reason > BROWNOUT) {
         while (true) {
             // This very bad because it means running in safe mode didn't save us. Only ignore brownout
             // because it may be due to a switch bouncing.
         }
     }
+#endif
 
     safe_mode_on_next_reset(reason);
     reset_cpu();
