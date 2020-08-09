@@ -166,9 +166,9 @@ uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
 void common_hal_matrix_matrix_suspend(matrix_matrix_obj_t *self)
 {
     // When USB is connected, do not suspend
-    if (NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk) {
-        return;
-    }
+    // if (NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk) {
+    //     return;
+    // }
 
     select_rows();
 
@@ -179,7 +179,7 @@ void common_hal_matrix_matrix_suspend(matrix_matrix_obj_t *self)
         NRFX_DELAY_US(10000);
         last = cols;
         cols = read_cols();
-    } while (!(cols | last));
+    } while (cols | last);
 
     enable_interrupt();
 
@@ -195,6 +195,7 @@ void common_hal_matrix_matrix_suspend(matrix_matrix_obj_t *self)
     }
 #endif
 
+    NRF_POWER->GPREGRET = 0xFB;     // Fast Boot
     NRF_POWER->SYSTEMOFF = 1;
     NRFX_DELAY_US(10000);
     disable_interrupt();
