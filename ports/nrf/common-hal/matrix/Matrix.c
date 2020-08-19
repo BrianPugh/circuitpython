@@ -113,7 +113,7 @@ uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
     uint64_t start_tick = port_get_raw_ticks(NULL);
     // Adjust the delay to ticks vs ms.
     int64_t remaining = timeout * 1024 / 1000;
-    uint64_t end_tick = start_tick + timeout;
+    uint64_t end_tick = start_tick + remaining;
     uint32_t n = self->head - self->tail;
     if (self->active) {
         do {
@@ -130,8 +130,8 @@ uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
                 }
             }
             enable_interrupt();
-            uint32_t tick = remaining < 4 ? remaining : 4;
-            port_interrupt_after_ticks(tick);
+            // uint32_t tick = remaining < 4 ? remaining : 4;
+            port_interrupt_after_ticks(4);
             port_sleep_until_interrupt();
             disable_interrupt();
             unselect_rows();
@@ -143,14 +143,11 @@ uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
         matrix_interrupt_status = 0;
         if (!cols) {
             enable_interrupt();
-            do {
-                port_interrupt_after_ticks(remaining);
-                port_sleep_until_interrupt();
-                if (matrix_interrupt_status) {
-                    break;
-                }
-                remaining = end_tick - port_get_raw_ticks(NULL);
-            } while (remaining > 1);
+            if (remaining == 0) {
+                remaining = 1024; // a seconds
+            }
+            port_interrupt_after_ticks(remaining);
+            port_sleep_until_interrupt();
             disable_interrupt();
         }
         unselect_rows();
@@ -166,9 +163,12 @@ uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
 void common_hal_matrix_matrix_suspend(matrix_matrix_obj_t *self)
 {
     // When USB is connected, do not suspend
-    // if (NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk) {
-    //     return;
-    // }
+    if (NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk) {
+        return;
+    }
+
+    // turn off rgb matrix
+    nrf_gpio_cfg_default(36);
 
     select_rows();
 
@@ -197,9 +197,8 @@ void common_hal_matrix_matrix_suspend(matrix_matrix_obj_t *self)
 
     NRF_POWER->GPREGRET = 0xFB;     // Fast Boot
     NRF_POWER->SYSTEMOFF = 1;
-    NRFX_DELAY_US(10000);
-    disable_interrupt();
-    unselect_rows();
+    NRFX_DELAY_US(10);
+    NVIC_SystemReset();
 }
 
 static void init_rows(void)

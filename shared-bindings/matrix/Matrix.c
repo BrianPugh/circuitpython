@@ -143,9 +143,9 @@ STATIC mp_obj_t matrix_matrix_wait(size_t n_args, const mp_obj_t *pos_args, mp_m
     mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
 
     int timeout = args[ARG_timeout].u_int;
-    if (timeout <= 0) {
-        return MP_OBJ_NEW_SMALL_INT(common_hal_matrix_matrix_scan(self));
-    }
+    // if (timeout <= 0) {
+    //     return MP_OBJ_NEW_SMALL_INT(common_hal_matrix_matrix_scan(self));
+    // }
 
     return MP_OBJ_NEW_SMALL_INT(common_hal_matrix_matrix_wait(self, timeout));
 }
