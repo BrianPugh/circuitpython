@@ -92,7 +92,6 @@ safe_mode_t wait_for_safe_mode_reset(void) {
     #endif
     clear_temp_status();
     port_set_saved_word(SAFE_MODE_DATA_GUARD);
-#endif
     return NO_SAFE_MODE;
 }
 

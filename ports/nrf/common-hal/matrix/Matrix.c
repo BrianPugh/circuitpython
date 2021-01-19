@@ -132,7 +132,7 @@ uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
             enable_interrupt();
             // uint32_t tick = remaining < 4 ? remaining : 4;
             port_interrupt_after_ticks(4);
-            port_sleep_until_interrupt();
+            port_idle_until_interrupt();
             disable_interrupt();
             unselect_rows();
             remaining = end_tick - port_get_raw_ticks(NULL);
@@ -147,7 +147,7 @@ uint32_t common_hal_matrix_matrix_wait(matrix_matrix_obj_t *self, int timeout)
                 remaining = 1024; // a seconds
             }
             port_interrupt_after_ticks(remaining);
-            port_sleep_until_interrupt();
+            port_idle_until_interrupt();
             disable_interrupt();
         }
         unselect_rows();

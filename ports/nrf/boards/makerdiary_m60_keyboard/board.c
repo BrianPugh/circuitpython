@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include "boards/board.h"
+//#include "boards/board.h"
 #include "shared-bindings/digitalio/DigitalInOut.h"
 #include "common-hal/microcontroller/Pin.h"
 #include "nrfx_gpiote.h"
