@@ -66,7 +66,7 @@ LDFLAGS += -static -static-libgcc -static-libstdc++
 endif
 
 # source files
-SRC_C = \
+SRC_C += \
 	main.c \
 	gccollect.c \
 	supervisor/stub/safe_mode.c \
@@ -81,5 +81,7 @@ endif
 
 OBJ = $(PY_O)
 OBJ += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
+
+$(BUILD)/supervisor/shared/translate.o: $(HEADER_BUILD)/qstrdefs.generated.h
 
 include $(TOP)/py/mkrules.mk

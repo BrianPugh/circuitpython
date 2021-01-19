@@ -36,10 +36,10 @@
 //| class Pin:
 //|     """Identifies an IO pin on the microcontroller."""
 //|
-//|     def __init__(self, ):
+//|     def __init__(self) -> None:
 //|         """Identifies an IO pin on the microcontroller. They are fixed by the
 //|         hardware so they cannot be constructed on demand. Instead, use
-//|         `board` or `microcontroller.pin` to reference the desired pin."""
+//|         :mod:`board` or :mod:`microcontroller.pin` to reference the desired pin."""
 //|         ...
 //|
 
@@ -71,7 +71,11 @@ STATIC void mcu_pin_print(const mp_print_t *print, mp_obj_t self_in, mp_print_ki
     qstr name;
 
     get_pin_name(self, &package, &module, &name);
-    mp_printf(print, "%q.%q.%q", MP_QSTR_microcontroller, MP_QSTR_pin, name);
+    if (package){
+        mp_printf(print, "%q.%q.%q", package, module, name);
+    } else {
+        mp_printf(print, "%q.%q", module , name);
+    }
 }
 
 const mp_obj_type_t mcu_pin_type = {

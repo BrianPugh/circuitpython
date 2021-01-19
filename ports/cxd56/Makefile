@@ -107,7 +107,6 @@ CFLAGS += \
 	-Dmain=spresense_main \
 	-D_estack=__stack \
 	-c \
-	-Os \
 	-pipe \
 	-std=gnu11 \
 	-mcpu=cortex-m4 \
@@ -122,6 +121,12 @@ CFLAGS += \
 	-ffunction-sections \
 	-fdata-sections \
 	-Wall \
+
+OPTIMIZATION_FLAGS ?= -O2 -fno-inline-functions
+
+# option to override compiler optimization level, set in boards/$(BOARD)/mpconfigboard.mk
+CFLAGS += $(OPTIMIZATION_FLAGS)
+
 
 LIBM = "${shell "$(CC)" $(CFLAGS) -print-file-name=libm.a}"
 
@@ -146,7 +151,7 @@ LDFLAGS = \
 	--end-group \
 	-L$(BUILD) \
 
-CFLAGS += -DCFG_TUSB_MCU=OPT_MCU_CXD56 -DCFG_TUD_MIDI_RX_BUFSIZE=128 -DCFG_TUD_CDC_RX_BUFSIZE=256 -DCFG_TUD_MIDI_TX_BUFSIZE=128 -DCFG_TUD_CDC_TX_BUFSIZE=256 -DCFG_TUD_MSC_BUFSIZE=512 $(CFLAGS_MOD)
+CFLAGS += -DCFG_TUSB_MCU=OPT_MCU_CXD56 -DCFG_TUD_MIDI_RX_BUFSIZE=512 -DCFG_TUD_CDC_RX_BUFSIZE=512 -DCFG_TUD_MIDI_TX_BUFSIZE=512 -DCFG_TUD_CDC_TX_BUFSIZE=512 -DCFG_TUD_MSC_BUFSIZE=512 $(CFLAGS_MOD)
 
 SRC_COMMON_HAL_EXPANDED = $(addprefix shared-bindings/, $(SRC_COMMON_HAL)) \
                           $(addprefix shared-bindings/, $(SRC_BINDINGS_ENUMS)) \
@@ -157,7 +162,7 @@ SRC_SHARED_MODULE_EXPANDED = $(addprefix shared-bindings/, $(SRC_SHARED_MODULE))
 
 SRC_S = supervisor/cpu.s
 
-SRC_C = \
+SRC_C += \
 	background.c \
 	fatfs_port.c \
 	mphalport.c \
@@ -196,7 +201,7 @@ all: $(BUILD)/firmware.spk
 $(FIRMWARE):
 	$(ECHO) ""
 	$(ECHO) "Download the spresense binaries zip archive from:"
-	$(ECHO) "https://developer.sony.com/file/download/download-spresense-firmware-v1-4-000"
+	$(ECHO) "https://developer.sony.com/file/download/download-spresense-firmware-v2-0-000"
 	$(ECHO) "Extract spresense binaries to $(FIRMWARE)"
 	$(ECHO) ""
 	$(ECHO) "run make flash-bootloader again to flash bootloader."

@@ -93,16 +93,8 @@ void tud_hid_set_report_cb(uint8_t report_id, hid_report_type_t report_type, uin
     }
 
     usb_hid_device_obj_t* hid_device = get_hid_device(report_id);
+
     if (hid_device && hid_device->out_report_length >= bufsize) {
         memcpy(hid_device->out_report_buffer, buffer, bufsize);
-        // if (hid_device->usage_page == HID_USAGE_PAGE_DESKTOP &&
-        //         hid_device->usage == HID_USAGE_DESKTOP_KEYBOARD) {
-        //     // This is LED indicator (CapsLock, NumLock)
-        //     if (buffer[0] & 2) {
-        //         *(volatile uint32_t *)0x5000050C = 1 << 29;
-        //     } else {
-        //         *(volatile uint32_t *)0x50000508 = 1 << 29;
-        //     }
-        // }
     }
 }

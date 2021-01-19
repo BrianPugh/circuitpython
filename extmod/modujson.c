@@ -5,6 +5,8 @@
 
 #include <stdio.h>
 
+#include "py/binary.h"
+#include "py/objarray.h"
 #include "py/objlist.h"
 #include "py/objstringio.h"
 #include "py/parsenum.h"
@@ -53,6 +55,10 @@ typedef struct _ujson_stream_t {
     mp_obj_t stream_obj;
     mp_uint_t (*read)(mp_obj_t obj, void *buf, mp_uint_t size, int *errcode);
     int errcode;
+    mp_obj_t python_readinto[2 + 1];
+    mp_obj_array_t bytearray_obj;
+    size_t start;
+    size_t end;
     byte cur;
 } ujson_stream_t;
 
@@ -73,9 +79,55 @@ STATIC byte ujson_stream_next(ujson_stream_t *s) {
     return s->cur;
 }
 
+// We read from an object's `readinto` method in chunks larger than the json
+// parser needs to reduce the number of function calls done.
+
+#define CIRCUITPY_JSON_READ_CHUNK_SIZE 64
+
+STATIC mp_uint_t ujson_python_readinto(mp_obj_t obj, void *buf, mp_uint_t size, int *errcode) {
+    (void) size; // Ignore size because we know it's always 1.
+    ujson_stream_t* s = obj;
+
+    if (s->start == s->end) {
+        *errcode = 0;
+        mp_obj_t ret = mp_call_method_n_kw(1, 0, s->python_readinto);
+        if (ret == mp_const_none) {
+            *errcode = MP_EAGAIN;
+            return MP_STREAM_ERROR;
+        }
+        s->start = 0;
+        s->end = mp_obj_get_int(ret);
+    }
+
+    *((uint8_t *)buf) = ((uint8_t*) s->bytearray_obj.items)[s->start];
+    s->start++;
+    return 1;
+}
+
 STATIC mp_obj_t _mod_ujson_load(mp_obj_t stream_obj, bool return_first_json) {
-    const mp_stream_p_t *stream_p = mp_get_stream_raise(stream_obj, MP_STREAM_OP_READ);
-    ujson_stream_t s = {stream_obj, stream_p->read, 0, 0};
+    const mp_stream_p_t *stream_p = mp_proto_get(MP_QSTR_protocol_stream, stream_obj);
+    ujson_stream_t s;
+    uint8_t character_buffer[CIRCUITPY_JSON_READ_CHUNK_SIZE];
+    if (stream_p == NULL) {
+        s.start = 0;
+        s.end = 0;
+        mp_load_method(stream_obj, MP_QSTR_readinto, s.python_readinto);
+        s.bytearray_obj.base.type = &mp_type_bytearray;
+        s.bytearray_obj.typecode = BYTEARRAY_TYPECODE;
+        s.bytearray_obj.len = CIRCUITPY_JSON_READ_CHUNK_SIZE;
+        s.bytearray_obj.free = 0;
+        s.bytearray_obj.items = character_buffer;
+        s.python_readinto[2] = MP_OBJ_FROM_PTR(&s.bytearray_obj);
+        s.stream_obj = &s;
+        s.read = ujson_python_readinto;
+    } else {
+        stream_p = mp_get_stream_raise(stream_obj, MP_STREAM_OP_READ);
+        s.stream_obj = stream_obj;
+        s.read = stream_p->read;
+        s.errcode = 0;
+        s.cur = 0;
+    }
+
     JSON_DEBUG("got JSON stream\n");
     vstr_t vstr;
     vstr_init(&vstr, 8);

@@ -38,7 +38,23 @@
 #include "supervisor/shared/external_flash/common_commands.h"
 #include "supervisor/shared/external_flash/qspi_flash.h"
 
-static void qspi_enable(void)
+// When USB is disconnected, disable QSPI in sleep mode to save energy
+void qspi_disable(void)
+{
+    // If VBUS is detected, no need to disable QSPI
+    if (NRF_QSPI->ENABLE && !(NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk)) {
+        // Keep CS high when QSPI is diabled
+        nrf_gpio_cfg_output(MICROPY_QSPI_CS);
+        nrf_gpio_pin_write(MICROPY_QSPI_CS, 1);
+
+        // Workaround to disable QSPI according to nRF52840 Revision 1 Errata V1.4 - 3.8
+        NRF_QSPI->TASKS_DEACTIVATE = 1;
+        *(volatile uint32_t *)0x40029054 = 1;
+        NRF_QSPI->ENABLE = 0;
+    }
+}
+
+void qspi_enable(void)
 {
     if (NRF_QSPI->ENABLE) {
         return;
@@ -185,7 +201,7 @@ void spi_flash_init(void) {
         .irq_priority = 7,
     };
 
-#if EXTERNAL_FLASH_QSPI_DUAL
+#if defined(EXTERNAL_FLASH_QSPI_DUAL)
     qspi_cfg.pins.io1_pin = MICROPY_QSPI_DATA1;
     qspi_cfg.prot_if.readoc = NRF_QSPI_READOC_READ2O;
     qspi_cfg.prot_if.writeoc = NRF_QSPI_WRITEOC_PP2O;

@@ -1,5 +1,5 @@
 USB_VID = 0x239A
-USB_PID = 0x801F
+USB_PID = 0x80AF
 USB_PRODUCT = "uGame10"
 USB_MANUFACTURER = "Radomir Dopieralski"
 
@@ -35,6 +35,7 @@ CIRCUITPY_DISPLAY_FONT = $(TOP)/ports/atmel-samd/boards/ugame10/brutalist-6.bdf
 
 # Tweak inlining depending on language.
 ifeq ($(TRANSLATION), zh_Latn_pinyin)
+RELEASE_NEEDS_CLEAN_BUILD = 1
 CFLAGS_INLINE_LIMIT = 45
 else
 CFLAGS_INLINE_LIMIT = 70

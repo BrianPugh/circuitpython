@@ -34,6 +34,7 @@
 #include "genhdr/compression.generated.h"
 #endif
 
+#include "py/misc.h"
 #include "supervisor/serial.h"
 
 void serial_write_compressed(const compressed_string_t* compressed) {
@@ -46,13 +47,29 @@ STATIC int put_utf8(char *buf, int u) {
     if(u <= 0x7f) {
         *buf = u;
         return 1;
+    } else if(word_start <= u && u <= word_end) {
+        uint n = (u - word_start);
+        size_t pos = 0;
+        if (n > 0) {
+            pos = wends[n - 1] + (n * 2);
+        }
+        int ret = 0;
+        // note that at present, entries in the words table are
+        // guaranteed not to represent words themselves, so this adds
+        // at most 1 level of recursive call
+        for(; pos < wends[n] + (n + 1) * 2; pos++) {
+            int len = put_utf8(buf, words[pos]);
+            buf += len;
+            ret += len;
+        }
+        return ret;
     } else if(u <= 0x07ff) {
         *buf++ = 0b11000000 | (u >> 6);
         *buf   = 0b10000000 | (u & 0b00111111);
         return 2;
-    } else { // u <= 0xffff)
-        *buf++ = 0b11000000 | (u >> 12);
-        *buf   = 0b10000000 | ((u >> 6) & 0b00111111);
+    } else { // u <= 0xffff
+        *buf++ = 0b11100000 | (u >> 12);
+        *buf++ = 0b10000000 | ((u >> 6) & 0b00111111);
         *buf   = 0b10000000 | (u & 0b00111111);
         return 3;
     }
@@ -105,7 +122,12 @@ char* decompress(const compressed_string_t* compressed, char* decompressed) {
     return decompressed;
 }
 
-inline __attribute__((always_inline)) const compressed_string_t* translate(const char* original) {
+inline
+// gcc10 -flto has issues with this being always_inline for debug builds.
+#if CIRCUITPY_DEBUG < 1
+ __attribute__((always_inline))
+#endif
+const compressed_string_t* translate(const char* original) {
     #ifndef NO_QSTR
     #define QDEF(id, str)
     #define TRANSLATION(id, firstbyte, ...) if (strcmp(original, id) == 0) { static const compressed_string_t v = { .data = firstbyte, .tail = { __VA_ARGS__ } }; return &v; } else

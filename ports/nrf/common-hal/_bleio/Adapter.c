@@ -61,7 +61,7 @@
 #endif
 
 #ifndef BLEIO_HVN_TX_QUEUE_SIZE
-#define BLEIO_HVN_TX_QUEUE_SIZE 9
+#define BLEIO_HVN_TX_QUEUE_SIZE 5
 #endif
 
 #ifndef BLEIO_CENTRAL_ROLE_COUNT
@@ -124,11 +124,11 @@ STATIC uint32_t ble_stack_enable(void) {
     // Start with no event handlers, etc.
     ble_drv_reset();
 
-    // Set everything up to have one persistent code editing connection and one user managed
-    // connection. In the future we could move .data and .bss to the other side of the stack and
+    // In the future we might move .data and .bss to the other side of the stack and
     // dynamically adjust for different memory requirements of the SD based on boot.py
-    // configuration.
-    uint32_t app_ram_start = (uint32_t) &_ram_start;
+    // configuration. But we still need to keep the SPIM3 buffer (if needed) in the first 64kB of RAM.
+
+    uint32_t sd_ram_end = SOFTDEVICE_RAM_START_ADDR + SOFTDEVICE_RAM_SIZE;
 
     ble_cfg_t ble_conf;
     ble_conf.conn_cfg.conn_cfg_tag = BLE_CONN_CFG_TAG_CUSTOM;
@@ -139,7 +139,7 @@ STATIC uint32_t ble_stack_enable(void) {
     // Event length here can influence throughput so perhaps make multiple connection profiles
     // available.
     ble_conf.conn_cfg.params.gap_conn_cfg.event_length = BLE_GAP_EVENT_LENGTH_DEFAULT;
-    err_code = sd_ble_cfg_set(BLE_CONN_CFG_GAP, &ble_conf, app_ram_start);
+    err_code = sd_ble_cfg_set(BLE_CONN_CFG_GAP, &ble_conf, sd_ram_end);
     if (err_code != NRF_SUCCESS) {
         return err_code;
     }
@@ -151,7 +151,7 @@ STATIC uint32_t ble_stack_enable(void) {
     ble_conf.gap_cfg.role_count_cfg.periph_role_count = BLEIO_PERIPH_ROLE_COUNT;
     // central_role_count costs 648 bytes for 1 to 2, then ~1250 for each further increment.
     ble_conf.gap_cfg.role_count_cfg.central_role_count = BLEIO_CENTRAL_ROLE_COUNT;
-    err_code = sd_ble_cfg_set(BLE_GAP_CFG_ROLE_COUNT, &ble_conf, app_ram_start);
+    err_code = sd_ble_cfg_set(BLE_GAP_CFG_ROLE_COUNT, &ble_conf, sd_ram_end);
     if (err_code != NRF_SUCCESS) {
         return err_code;
     }
@@ -162,7 +162,7 @@ STATIC uint32_t ble_stack_enable(void) {
     // DevZone recommends not setting this directly, but instead changing gap_conn_cfg.event_length.
     // However, we are setting connection extension, so this seems to make sense.
     ble_conf.conn_cfg.params.gatts_conn_cfg.hvn_tx_queue_size = BLEIO_HVN_TX_QUEUE_SIZE;
-    err_code = sd_ble_cfg_set(BLE_CONN_CFG_GATTS, &ble_conf, app_ram_start);
+    err_code = sd_ble_cfg_set(BLE_CONN_CFG_GATTS, &ble_conf, sd_ram_end);
     if (err_code != NRF_SUCCESS) {
         return err_code;
     }
@@ -171,7 +171,7 @@ STATIC uint32_t ble_stack_enable(void) {
     memset(&ble_conf, 0, sizeof(ble_conf));
     ble_conf.conn_cfg.conn_cfg_tag = BLE_CONN_CFG_TAG_CUSTOM;
     ble_conf.conn_cfg.params.gatt_conn_cfg.att_mtu = BLE_GATTS_VAR_ATTR_LEN_MAX;
-    err_code = sd_ble_cfg_set(BLE_CONN_CFG_GATT, &ble_conf, app_ram_start);
+    err_code = sd_ble_cfg_set(BLE_CONN_CFG_GATT, &ble_conf, sd_ram_end);
     if (err_code != NRF_SUCCESS) {
         return err_code;
     }
@@ -181,7 +181,7 @@ STATIC uint32_t ble_stack_enable(void) {
     memset(&ble_conf, 0, sizeof(ble_conf));
     // Each increment to the BLE_GATTS_ATTR_TAB_SIZE_DEFAULT multiplier costs 1408 bytes.
     ble_conf.gatts_cfg.attr_tab_size.attr_tab_size = BLEIO_ATTR_TAB_SIZE;
-    err_code = sd_ble_cfg_set(BLE_GATTS_CFG_ATTR_TAB_SIZE, &ble_conf, app_ram_start);
+    err_code = sd_ble_cfg_set(BLE_GATTS_CFG_ATTR_TAB_SIZE, &ble_conf, sd_ram_end);
     if (err_code != NRF_SUCCESS) {
         return err_code;
     }
@@ -191,13 +191,15 @@ STATIC uint32_t ble_stack_enable(void) {
     memset(&ble_conf, 0, sizeof(ble_conf));
     // Each additional vs_uuid_count costs 16 bytes.
     ble_conf.common_cfg.vs_uuid_cfg.vs_uuid_count = BLEIO_VS_UUID_COUNT; // Defaults to 10.
-    err_code = sd_ble_cfg_set(BLE_COMMON_CFG_VS_UUID, &ble_conf, app_ram_start);
+    err_code = sd_ble_cfg_set(BLE_COMMON_CFG_VS_UUID, &ble_conf, sd_ram_end);
     if (err_code != NRF_SUCCESS) {
         return err_code;
     }
 
-    // This sets app_ram_start to the minimum value needed for the settings set above.
-    err_code = sd_ble_enable(&app_ram_start);
+    // This sets sd_ram_end to the minimum value needed for the settings set above.
+    // You can set a breakpoint just after this call and examine sd_ram_end to see
+    // how much RAM the SD needs with the configuration above.
+    err_code = sd_ble_enable(&sd_ram_end);
     if (err_code != NRF_SUCCESS) {
         return err_code;
     }
@@ -356,6 +358,8 @@ void common_hal_bleio_adapter_set_enabled(bleio_adapter_obj_t *self, bool enable
     if (enabled) {
         for (size_t i = 0; i < BLEIO_TOTAL_CONNECTION_COUNT; i++) {
             bleio_connection_internal_t *connection = &bleio_connections[i];
+            // Reset connection.
+            bleio_connection_clear(connection);
             connection->conn_handle = BLE_CONN_HANDLE_INVALID;
         }
         bleio_adapter_reset_name(self);
@@ -390,14 +394,15 @@ bleio_address_obj_t *common_hal_bleio_adapter_get_address(bleio_adapter_obj_t *s
     return address;
 }
 
-uint32_t common_hal_bleio_adapter_set_address(bleio_adapter_obj_t *self, bleio_address_obj_t *address)
-{
-    // todo
+bool common_hal_bleio_adapter_set_address(bleio_adapter_obj_t *self, bleio_address_obj_t *address) {
     ble_gap_addr_t local_address;
+    mp_buffer_info_t bufinfo;
+    if (!mp_get_buffer(address->bytes, &bufinfo, MP_BUFFER_READ)) {
+        return false;
+    }
     local_address.addr_type = address->type;
-    const char *data = mp_obj_str_get_str(address->bytes);
-    memcpy(local_address.addr, data, NUM_BLEIO_ADDRESS_BYTES);
-    return sd_ble_gap_addr_set(&local_address);
+    memcpy(local_address.addr, bufinfo.buf, NUM_BLEIO_ADDRESS_BYTES);
+    return sd_ble_gap_addr_set(&local_address) == NRF_SUCCESS;
 }
 
 mp_obj_str_t* common_hal_bleio_adapter_get_name(bleio_adapter_obj_t *self) {
@@ -468,16 +473,25 @@ mp_obj_t common_hal_bleio_adapter_start_scan(bleio_adapter_obj_t *self, uint8_t*
 
     ble_drv_add_event_handler(scan_on_ble_evt, self->scan_results);
 
-    uint32_t nrf_timeout = SEC_TO_UNITS(timeout, UNIT_10_MS);
-    if (timeout <= 0.0001) {
+    uint32_t nrf_timeout = SEC_TO_UNITS(timeout, UNIT_10_MS) + 0.5f;
+    if (nrf_timeout > UINT16_MAX) {
+        // 0xffff / 100
+        mp_raise_ValueError(translate("timeout must be < 655.35 secs"));
+    }
+    if (nrf_timeout == 0 && timeout > 0.0f) {
+        // Make sure converted timeout is > 0 if original timeout is > 0.
+        mp_raise_ValueError(translate("non-zero timeout must be > 0.01"));
+    }
+
+    if (nrf_timeout == 0) {
         nrf_timeout = BLE_GAP_SCAN_TIMEOUT_UNLIMITED;
     }
 
     ble_gap_scan_params_t scan_params = {
         .extended = extended,
-        .interval = SEC_TO_UNITS(interval, UNIT_0_625_MS),
+        .interval = SEC_TO_UNITS(interval, UNIT_0_625_MS) + 0.5f,
         .timeout = nrf_timeout,
-        .window = SEC_TO_UNITS(window, UNIT_0_625_MS),
+        .window = SEC_TO_UNITS(window, UNIT_0_625_MS) + 0.5f,
         .scan_phys = BLE_GAP_PHY_1MBPS,
         .active = active
     };
@@ -486,8 +500,8 @@ mp_obj_t common_hal_bleio_adapter_start_scan(bleio_adapter_obj_t *self, uint8_t*
     err_code = sd_ble_gap_scan_start(&scan_params, sd_data);
 
     if (err_code != NRF_SUCCESS) {
-        self->scan_results = NULL;
         ble_drv_remove_event_handler(scan_on_ble_evt, self->scan_results);
+        self->scan_results = NULL;
         check_nrf_error(err_code);
     }
 
@@ -543,7 +557,7 @@ mp_obj_t common_hal_bleio_adapter_connect(bleio_adapter_obj_t *self, bleio_addre
         .window = MSEC_TO_UNITS(100, UNIT_0_625_MS),
         .scan_phys = BLE_GAP_PHY_1MBPS,
         // timeout of 0 means no timeout
-        .timeout = SEC_TO_UNITS(timeout, UNIT_10_MS),
+        .timeout = SEC_TO_UNITS(timeout, UNIT_10_MS) + 0.5f,
     };
 
     ble_gap_conn_params_t conn_params = {
@@ -590,6 +604,7 @@ mp_obj_t common_hal_bleio_adapter_connect(bleio_adapter_obj_t *self, bleio_addre
     for (size_t i = 0; i < BLEIO_TOTAL_CONNECTION_COUNT; i++) {
         bleio_connection_internal_t *connection = &bleio_connections[i];
         if (connection->conn_handle == conn_handle) {
+            connection->is_central = true;
             return bleio_connection_new_from_internal(connection);
         }
     }
@@ -685,7 +700,7 @@ uint32_t _common_hal_bleio_adapter_start_advertising(bleio_adapter_obj_t *self, 
     }
 
     ble_gap_adv_params_t adv_params = {
-        .interval = SEC_TO_UNITS(interval, UNIT_0_625_MS),
+        .interval = SEC_TO_UNITS(interval, UNIT_0_625_MS) + 0.5f,
         .properties.type = adv_type,
         .duration = SEC_TO_UNITS(timeout, UNIT_10_MS),
         .filter_policy = BLE_GAP_ADV_FP_ANY,

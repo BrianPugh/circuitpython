@@ -84,12 +84,12 @@ void common_hal_audiobusio_pdmin_construct(audiobusio_pdmin_obj_t* self,
     self->clock_pin = clock_pin; // PA10, PA20 -> SCK0, PB11 -> SCK1
     #ifdef SAMD21
         if (clock_pin == &pin_PA10
-        #ifdef PIN_PA20
+        #if defined(PIN_PA20) && !defined(IGNORE_PIN_PA20)
             || clock_pin == &pin_PA20
         #endif
             ) {
             self->clock_unit = 0;
-        #ifdef PIN_PB11
+        #if defined(PIN_PB11) && !defined(IGNORE_PIN_PB11)
         } else if (clock_pin == &pin_PB11) {
             self->clock_unit = 1;
         #endif
@@ -98,7 +98,7 @@ void common_hal_audiobusio_pdmin_construct(audiobusio_pdmin_obj_t* self,
         if (clock_pin == &pin_PA10 || clock_pin == &pin_PB16) {
             self->clock_unit = 0;
     } else if (clock_pin == &pin_PB12
-        #ifdef PIN_PB28
+        #if defined(PIN_PB28) && !defined(IGNORE_PIN_PB28)
         || data_pin == &pin_PB28) {
         #else
         ) {
@@ -112,14 +112,24 @@ void common_hal_audiobusio_pdmin_construct(audiobusio_pdmin_obj_t* self,
     self->data_pin = data_pin; // PA07, PA19 -> SD0, PA08, PB16 -> SD1
 
     #ifdef SAMD21
-    if (data_pin == &pin_PA07 || data_pin == &pin_PA19) {
-        self->serializer = 0;
-    } else if (data_pin == &pin_PA08
-        #ifdef PIN_PB16
-        || data_pin == &pin_PB16) {
-        #else
-        ) {
+    if (false
+        #if defined(PIN_PA07) && !defined(IGNORE_PIN_PA07)
+        || data_pin == &pin_PA07
         #endif
+        #if defined(PIN_PA19) && !defined(IGNORE_PIN_PA19)
+        || data_pin == &pin_PA19
+        #endif
+        ) {
+        self->serializer = 0;
+    }
+    else if (false
+        #if defined(PIN_PA08) && !defined(IGNORE_PIN_PA08)
+        || data_pin == &pin_PA08
+        #endif
+        #if defined (PIN_PB16) && !defined(IGNORE_PIN_PB16)
+        || data_pin == &pin_PB16
+       #endif
+        ) {
         self->serializer = 1;
     #endif
     #ifdef SAM_D5X_E5X
@@ -316,7 +326,7 @@ static void setup_dma(audiobusio_pdmin_obj_t* self, uint32_t length,
 // higher sample rate than specified.  Then after the audio is
 // recorded, a more expensive filter non-real-time filter could be
 // used to down-sample and low-pass.
-uint16_t sinc_filter [OVERSAMPLING] = {
+const uint16_t sinc_filter [OVERSAMPLING] = {
     0, 2, 9, 21, 39, 63, 94, 132,
     179, 236, 302, 379, 467, 565, 674, 792,
     920, 1055, 1196, 1341, 1487, 1633, 1776, 1913,
@@ -327,7 +337,11 @@ uint16_t sinc_filter [OVERSAMPLING] = {
     94, 63, 39, 21, 9, 2, 0, 0
 };
 
-#define REPEAT_16_TIMES(X) X X X X X X X X X X X X X X X X
+#ifdef SAMD21
+#define REPEAT_16_TIMES(X) do { for(uint8_t j=0; j<4; j++) { X X X X } } while (0)
+#else
+#define REPEAT_16_TIMES(X) do { X X X X X X X X X X X X X X X X } while(0)
+#endif
 
 static uint16_t filter_sample(uint32_t pdm_samples[4]) {
     uint16_t running_sum = 0;
@@ -344,7 +358,7 @@ static uint16_t filter_sample(uint32_t pdm_samples[4]) {
                 filter_ptr++;
                 pdm_sample <<= 1;
             }
-            )
+            );
     }
     return running_sum;
 }

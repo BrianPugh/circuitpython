@@ -46,6 +46,7 @@
 #include "hpl_gclk_config.h"
 
 #include "shared-bindings/time/__init__.h"
+#include "supervisor/shared/tick.h"
 #include "supervisor/shared/translate.h"
 
 #ifdef SAMD21
@@ -81,7 +82,8 @@ void frequencyin_emergency_cancel_capture(uint8_t index) {
     #ifdef SAM_D5X_E5X
     NVIC_EnableIRQ(EIC_0_IRQn + self->channel);
     #endif
-    mp_raise_RuntimeError(translate("Frequency captured is above capability. Capture Paused."));
+    // Frequency captured is above capability. Capture paused.
+    // We can't raise an error here; we're in an interrupt handler.
 }
 
 void frequencyin_interrupt_handler(uint8_t index) {
@@ -132,7 +134,7 @@ void frequencyin_interrupt_handler(uint8_t index) {
             }
 
             // Check if we've reached the upper limit of detection
-            if (!background_tasks_ok() || self->errored_too_fast) {
+            if (!supervisor_background_tasks_ok() || self->errored_too_fast) {
                 self->errored_too_fast = true;
                 frequencyin_emergency_cancel_capture(i);
             }

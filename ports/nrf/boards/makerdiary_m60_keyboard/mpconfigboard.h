@@ -30,6 +30,7 @@
 #define MICROPY_HW_BOARD_NAME       "Makerdiary M60 Keyboard"
 #define MICROPY_HW_MCU_NAME         "nRF52840"
 
+// RGB LEDs use PWM peripheral, avoid using them to save energy
 // #define CP_RGB_STATUS_R             (&pin_P0_30)
 // #define CP_RGB_STATUS_G             (&pin_P0_29)
 // #define CP_RGB_STATUS_B             (&pin_P0_31)

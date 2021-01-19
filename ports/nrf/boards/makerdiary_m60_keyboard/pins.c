@@ -1,6 +1,6 @@
 #include "shared-bindings/board/__init__.h"
 
-#include "boards/board.h"
+#include "supervisor/board.h"
 #include "shared-module/displayio/__init__.h"
 
 extern digitalio_digitalinout_obj_t led_r;

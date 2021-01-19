@@ -24,7 +24,7 @@ typedef struct _mp_obj_vfs_posix_file_t {
 #ifdef MICROPY_CPYTHON_COMPAT
 STATIC void check_fd_is_open(const mp_obj_vfs_posix_file_t *o) {
     if (o->fd < 0) {
-        nlr_raise(mp_obj_new_exception_msg(&mp_type_ValueError, translate("I/O operation on closed file")));
+        mp_raise_ValueError(translate("I/O operation on closed file"));
     }
 }
 #else
@@ -34,7 +34,7 @@ STATIC void check_fd_is_open(const mp_obj_vfs_posix_file_t *o) {
 STATIC void vfs_posix_file_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     (void)kind;
     mp_obj_vfs_posix_file_t *self = MP_OBJ_TO_PTR(self_in);
-    mp_printf(print, "<io.%s %d>", mp_obj_get_type_str(self_in), self->fd);
+    mp_printf(print, "<io.%q %d>", mp_obj_get_type_qstr(self_in), self->fd);
 }
 
 mp_obj_t mp_vfs_posix_file_open(const mp_obj_type_t *type, mp_obj_t file_in, mp_obj_t mode_in) {
